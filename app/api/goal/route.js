@@ -1,8 +1,8 @@
-import { ImageResponse } from "@vercel/og";
+import { ImageResponse } from "next/og";
 
-export const config = { runtime: "edge" };
+export const runtime = "edge";
 
-export default function handler(req) {
+export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const goal = searchParams.get("goal") || "Graduation";
   const goalDate = searchParams.get("goal_date") || "2026-05-09";
@@ -25,14 +25,12 @@ export default function handler(req) {
   const dotSize = Math.round(width * 0.032);
   const gap = Math.round(dotSize * 0.6);
 
-  // Build rows of dots
   const rows = [];
   for (let r = 0; r < rowCount; r++) {
     const rowDots = [];
     for (let c = 0; c < cols; c++) {
       const i = r * cols + c;
       if (i >= totalWeeks) {
-        // Empty spacer to maintain grid alignment
         rowDots.push(
           <div
             key={`${r}-${c}`}
@@ -93,7 +91,6 @@ export default function handler(req) {
           fontFamily: "sans-serif",
         }}
       >
-        {/* Goal label */}
         <div
           style={{
             color: "rgba(255,255,255,0.55)",
@@ -105,7 +102,6 @@ export default function handler(req) {
           {goal}
         </div>
 
-        {/* Dot grid */}
         <div
           style={{
             display: "flex",
@@ -117,7 +113,6 @@ export default function handler(req) {
           {rows}
         </div>
 
-        {/* Stats */}
         <div
           style={{
             display: "flex",
