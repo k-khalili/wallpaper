@@ -52,9 +52,9 @@ If you just want *your own* goal and colors, fork and deploy this repo once, the
 
 > URL-encode `#` as `%23` and spaces as `%20`.
 
-### 2. Light customization — edit `config.js`
+### 2. Light customization — edit `app/api/goal/config.js`
 
-Open [`config.js`](./config.js) and change the defaults. Everything is grouped and commented: goal, theme (colors), typography, layout, unit, labels. Redeploy (`git push` if you've connected Vercel to GitHub) and you're done.
+Open [`app/api/goal/config.js`](./app/api/goal/config.js) and change the defaults. Everything is grouped and commented: goal, theme (colors), typography, layout, unit, labels. Redeploy (`git push` if you've connected Vercel to GitHub) and you're done.
 
 ### 3. Full customization — edit `app/api/goal/route.js`
 
@@ -64,7 +64,7 @@ The route is small and readable. Change the layout, add new shapes, add a date l
 
 ## Parameter reference
 
-All parameters are optional. Any you omit fall back to what's in `config.js`.
+All parameters are optional. Any you omit fall back to what's in `app/api/goal/config.js`.
 
 ### Goal
 
@@ -169,8 +169,8 @@ wallpaper/
 ├── app/
 │   └── api/
 │       └── goal/
-│           └── route.js    # Edge Function — renders the wallpaper
-├── config.js               # Defaults for colors, dates, text, layout
+│           ├── route.js    # Edge Function — renders the wallpaper
+│           └── config.js   # Defaults for colors, dates, text, layout
 ├── package.json
 └── vercel.json
 ```
