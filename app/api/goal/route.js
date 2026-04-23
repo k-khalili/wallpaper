@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { resolveConfig } from "../../../config.js";
+import { resolveConfig } from "./config.js";
 
 export const runtime = "edge";
 
