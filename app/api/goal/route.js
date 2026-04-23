@@ -1,54 +1,74 @@
 import { ImageResponse } from "next/og";
+import { resolveConfig } from "./config.js";
 
 export const runtime = "edge";
 
+// How many milliseconds are in one "unit" of progress.
+const UNIT_MS = {
+  day:   1000 * 60 * 60 * 24,
+  week:  1000 * 60 * 60 * 24 * 7,
+  month: 1000 * 60 * 60 * 24 * 30, // approximate; fine for visual grids
+};
+
+function borderRadiusFor(shape, dotSize) {
+  if (shape === "square")  return 0;
+  if (shape === "rounded") return Math.round(dotSize * 0.25);
+  return "50%"; // circle (default)
+}
+
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
-  const goal = searchParams.get("goal") || "Graduation";
-  const goalDate = searchParams.get("goal_date") || "2026-05-09";
-  const startDate = searchParams.get("start_date") || "2024-01-01";
-  const width = parseInt(searchParams.get("width") || "1320");
-  const height = parseInt(searchParams.get("height") || "2868");
-  const cols = parseInt(searchParams.get("cols") || "11");
+  const cfg = resolveConfig(searchParams);
 
+  // ---- Resolve inputs ----------------------------------------------------
+  const { label, startDate, goalDate } = cfg.goal;
+  const { width, height, cols, dotSizeRatio, gapRatio, shape } = cfg.layout;
+  const { background, pastColor, currentColor, futureColor, labelColor,
+          remainingColor, remainingSuffixColor, percentColor } = cfg.theme;
+  const { fontFamily, labelSizeRatio, footerSizeRatio,
+          labelWeight, numberWeight } = cfg.typography;
+  const { remainingSuffix, showPercent, percentSuffix } = cfg.labels;
+
+  // ---- Count progress in whichever unit the user picked ------------------
+  const unitMs = UNIT_MS[cfg.unit] || UNIT_MS.week;
   const start = new Date(startDate + "T00:00:00Z");
-  const end = new Date(goalDate + "T00:00:00Z");
-  const now = new Date();
-  const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+  const end   = new Date(goalDate  + "T00:00:00Z");
+  const now   = new Date();
 
-  const totalWeeks = Math.ceil((end - start) / msPerWeek);
-  const elapsed = Math.min(Math.max(Math.floor((now - start) / msPerWeek), 0), totalWeeks);
-  const remaining = totalWeeks - elapsed;
-  const pct = Math.round((elapsed / totalWeeks) * 100);
+  const totalUnits = Math.max(1, Math.ceil((end - start) / unitMs));
+  const elapsed    = Math.min(Math.max(Math.floor((now - start) / unitMs), 0), totalUnits);
+  const remaining  = totalUnits - elapsed;
+  const pct        = Math.round((elapsed / totalUnits) * 100);
 
-  const rowCount = Math.ceil(totalWeeks / cols);
-  const dotSize = Math.round(width * 0.032);
-  const gap = Math.round(dotSize * 0.6);
+  // ---- Build the dot grid -----------------------------------------------
+  const rowCount = Math.ceil(totalUnits / cols);
+  const dotSize  = Math.round(width * dotSizeRatio);
+  const gap      = Math.round(dotSize * gapRatio);
+  const radius   = borderRadiusFor(shape, dotSize);
 
   const rows = [];
   for (let r = 0; r < rowCount; r++) {
     const rowDots = [];
     for (let c = 0; c < cols; c++) {
       const i = r * cols + c;
-      if (i >= totalWeeks) {
+      if (i >= totalUnits) {
         rowDots.push(
           <div
             key={`${r}-${c}`}
             style={{
               width: dotSize,
               height: dotSize,
-              borderRadius: "50%",
+              borderRadius: radius,
               backgroundColor: "transparent",
             }}
           />
         );
         continue;
       }
-
       let color;
-      if (i < elapsed) color = "#FFFFFF";
-      else if (i === elapsed) color = "#E8633B";
-      else color = "rgba(255,255,255,0.18)";
+      if (i < elapsed)        color = pastColor;
+      else if (i === elapsed) color = currentColor;
+      else                    color = futureColor;
 
       rowDots.push(
         <div
@@ -56,7 +76,7 @@ export async function GET(req) {
           style={{
             width: dotSize,
             height: dotSize,
-            borderRadius: "50%",
+            borderRadius: radius,
             backgroundColor: color,
           }}
         />
@@ -77,29 +97,30 @@ export async function GET(req) {
     );
   }
 
+  // ---- Render ------------------------------------------------------------
   return new ImageResponse(
     (
       <div
         style={{
           width: "100%",
           height: "100%",
-          backgroundColor: "#000000",
+          backgroundColor: background,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          fontFamily: "sans-serif",
+          fontFamily: fontFamily,
         }}
       >
         <div
           style={{
-            color: "rgba(255,255,255,0.55)",
-            fontSize: Math.round(width * 0.038),
-            fontWeight: 500,
+            color: labelColor,
+            fontSize: Math.round(width * labelSizeRatio),
+            fontWeight: labelWeight,
             marginBottom: Math.round(height * 0.025),
           }}
         >
-          {goal}
+          {label}
         </div>
 
         <div
@@ -118,36 +139,40 @@ export async function GET(req) {
             display: "flex",
             flexDirection: "row",
             alignItems: "center",
-            gap: 12,
+            gap: gap,
             marginTop: Math.round(height * 0.028),
           }}
         >
           <span
             style={{
-              color: "#E8633B",
-              fontSize: Math.round(width * 0.033),
-              fontWeight: 600,
+              color: remainingColor,
+              fontSize: Math.round(width * footerSizeRatio),
+              fontWeight: numberWeight,
             }}
           >
-            {remaining}w left
+            {remaining}{remainingSuffix ? " " + remainingSuffix.split(" ")[0] : ""}
           </span>
-          <span
-            style={{
-              color: "rgba(255,255,255,0.3)",
-              fontSize: Math.round(width * 0.033),
-            }}
-          >
-            ·
-          </span>
-          <span
-            style={{
-              color: "rgba(255,255,255,0.4)",
-              fontSize: Math.round(width * 0.033),
-              fontWeight: 500,
-            }}
-          >
-            {pct}%
-          </span>
+          {remainingSuffix && remainingSuffix.includes(" ") && (
+            <span
+              style={{
+                color: remainingSuffixColor,
+                fontSize: Math.round(width * footerSizeRatio),
+              }}
+            >
+              {remainingSuffix.split(" ").slice(1).join(" ")}
+            </span>
+          )}
+          {showPercent && (
+            <span
+              style={{
+                color: percentColor,
+                fontSize: Math.round(width * footerSizeRatio),
+                fontWeight: labelWeight,
+              }}
+            >
+              {pct}{percentSuffix}
+            </span>
+          )}
         </div>
       </div>
     ),
